@@ -88,6 +88,7 @@ const state = {
   timerId: 0,
   lastResult: null,
   lastPosterUrl: "",
+  targets: [],
   isPractice: false,
 };
 
@@ -658,6 +659,7 @@ function renderLevel() {
   state.maxNumber = config.maxNumber;
   state.next = 1;
   state.combo = 0;
+  state.targets = [];
 
   els.levelLabel.textContent = state.isPractice ? "体验关" : `第 ${state.level} / ${TOTAL_LEVELS} 关`;
   els.nextLabel.textContent = "找 1";
@@ -671,6 +673,7 @@ function renderLevel() {
   els.board.style.setProperty("--font-size", `${config.fontSize}px`);
   els.board.style.setProperty("--tap", `${config.tapSize}px`);
   els.board.innerHTML = svg;
+  els.board.onclick = onBoardClick;
 
   numbers.forEach((number, index) => {
     const point = centerPool[index];
@@ -684,8 +687,8 @@ function renderLevel() {
     button.style.setProperty("--tilt", `${(random() - 0.5) * Math.min(state.level, 24) * 0.8}deg`);
     button.style.setProperty("--tile-color", chooseColor(config, random));
     button.setAttribute("aria-label", `数字 ${number}`);
-    button.addEventListener("click", onTileClick);
     els.board.appendChild(button);
+    state.targets.push({ number, x: point.x, y: point.y, el: button, found: false });
   });
 }
 
@@ -694,9 +697,35 @@ function chooseColor(config, random) {
   return COLORS[Math.floor(random() * COLORS.length)];
 }
 
-function onTileClick(event) {
-  const tile = event.currentTarget;
-  const value = Number(tile.dataset.number);
+function onBoardClick(event) {
+  if (event.target.closest(".icon-btn")) return;
+  const boardRect = els.board.getBoundingClientRect();
+  const xPercent = ((event.clientX - boardRect.left) / boardRect.width) * 100;
+  const yPercent = ((event.clientY - boardRect.top) / boardRect.height) * 100;
+  const target = findNearestTarget(xPercent, yPercent);
+  if (!target) return;
+  handleNumberAttempt(target);
+}
+
+function findNearestTarget(xPercent, yPercent) {
+  let nearest = null;
+  let nearestDistance = Infinity;
+
+  state.targets.forEach((target) => {
+    if (target.found) return;
+    const distance = Math.hypot(target.x - xPercent, target.y - yPercent);
+    if (distance < nearestDistance) {
+      nearest = target;
+      nearestDistance = distance;
+    }
+  });
+
+  return nearest;
+}
+
+function handleNumberAttempt(target) {
+  const tile = target.el;
+  const value = target.number;
 
   if (value !== state.next) {
     tile.classList.remove("is-wrong");
@@ -708,6 +737,7 @@ function onTileClick(event) {
 
   tile.classList.add("is-found");
   tile.disabled = true;
+  target.found = true;
   state.combo += 1;
   state.next += 1;
 
