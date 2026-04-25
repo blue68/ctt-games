@@ -1,5 +1,5 @@
 import { TOTAL_LEVELS, STORAGE_KEYS } from "./config";
-import { createTargets, getLevelConfig, clamp } from "./level";
+import { createBoardShapes, createTargets, getLevelConfig, clamp } from "./level";
 import { SoundManager } from "./audio";
 import { CloudService } from "./cloud";
 import { createSharePoster } from "./poster";
@@ -26,6 +26,8 @@ export class FocusGame {
     this.level = 1;
     this.next = 1;
     this.targets = [];
+    this.boardShapes = [];
+    this.boardRect = { left: 24, top: 168, size: 0 };
     this.startedAt = 0;
     this.elapsed = 0;
     this.seedOffset = 0;
@@ -129,7 +131,9 @@ export class FocusGame {
   }
 
   tapGame(x, y) {
-    if (this.hit(x, y, 24, 28, 64, 48)) return (this.mode = MODES.HOME);
+    const metrics = this.getGameMetrics();
+    if (this.hit(x, y, metrics.back.left, metrics.back.top, metrics.back.size, metrics.back.size)) return (this.mode = MODES.HOME);
+    if (this.hit(x, y, metrics.pause.left, metrics.pause.top, metrics.pause.size, metrics.pause.size)) return (this.mode = MODES.HOME);
     const target = this.findNearestTarget(x, y);
     if (!target) return;
     if (target.number !== this.next) {
@@ -145,16 +149,19 @@ export class FocusGame {
 
   startLevel(level, marathon, seedOffset = 0) {
     const config = getLevelConfig(level);
+    const metrics = this.getGameMetrics();
     this.level = level;
     this.maxNumber = config.maxNumber;
     this.next = 1;
     this.elapsed = 0;
     this.isMarathon = marathon;
     this.seedOffset = seedOffset;
-    this.targets = createTargets(level, this.w - 48, this.w - 48, seedOffset).map((target) => ({
+    this.boardRect = metrics.board;
+    this.boardShapes = createBoardShapes(level, metrics.board.size, metrics.board.size, seedOffset);
+    this.targets = createTargets(level, metrics.board.size, metrics.board.size, seedOffset).map((target) => ({
       ...target,
-      x: target.x + 24,
-      y: target.y + 168,
+      x: target.x + metrics.board.left,
+      y: target.y + metrics.board.top,
     }));
     this.startedAt = Date.now();
     this.mode = marathon ? MODES.MARATHON : MODES.GAME;
@@ -284,6 +291,37 @@ export class FocusGame {
     return x >= left && x <= left + width && y >= top && y <= top + height;
   }
 
+  getGameMetrics() {
+    const safeTop = 24;
+    const horizontal = 14;
+    const maxWidth = Math.min(this.w - horizontal * 2, 560);
+    const left = (this.w - maxWidth) / 2;
+    const headerTop = safeTop;
+    const progress = {
+      left,
+      top: headerTop + 92,
+      width: maxWidth,
+      height: 92,
+    };
+    const footerHeight = 58;
+    const footerTop = this.h - footerHeight - 18;
+    const availableBoard = footerTop - (progress.top + progress.height) - 26;
+    const boardSize = Math.max(260, Math.min(maxWidth, availableBoard));
+    const board = {
+      left: (this.w - boardSize) / 2,
+      top: progress.top + progress.height + 24,
+      size: boardSize,
+    };
+    return {
+      headerTop,
+      back: { left, top: safeTop + 6, size: 50 },
+      pause: { left: left + maxWidth - 50, top: safeTop + 6, size: 50 },
+      progress,
+      board,
+      footer: { left, top: board.top + board.size + 14, width: maxWidth, height: footerHeight },
+    };
+  }
+
   render() {
     this.ctx.clearRect(0, 0, this.w, this.h);
     this.drawBackground();
@@ -335,30 +373,34 @@ export class FocusGame {
 
   drawGame() {
     const ctx = this.ctx;
-    this.backButton();
+    const metrics = this.getGameMetrics();
+    this.boardRect = metrics.board;
+    this.drawIconButton("←", metrics.back.left, metrics.back.top, metrics.back.size);
+    this.drawIconButton("Ⅱ", metrics.pause.left, metrics.pause.top, metrics.pause.size);
+
     ctx.fillStyle = "#746d62";
     ctx.font = "18px serif";
-    ctx.fillText(`第 ${this.level} / ${TOTAL_LEVELS} 关`, this.w / 2 - 56, 48);
+    ctx.textAlign = "center";
+    ctx.fillText(`第 ${this.level} / ${TOTAL_LEVELS} 关`, this.w / 2, metrics.headerTop + 18);
     ctx.fillStyle = "#191816";
-    ctx.font = "bold 34px serif";
-    ctx.fillText(`找 ${this.next}`, this.w / 2 - 44, 88);
-    ctx.font = "18px serif";
-    ctx.fillText(`快速从 1 找到 ${this.maxNumber}`, 24, 136);
-    ctx.fillText(`${this.elapsed.toFixed(1)}s`, this.w - 92, 136);
+    ctx.font = "bold 38px serif";
+    ctx.fillText(this.next <= this.maxNumber ? `找 ${this.next}` : "完成", this.w / 2, metrics.headerTop + 62);
+    ctx.textAlign = "left";
+
+    this.drawProgressCard(metrics.progress);
     this.drawBoard();
+    this.drawGameFooter(metrics.footer);
   }
 
   drawBoard() {
     const ctx = this.ctx;
-    const size = this.w - 48;
-    const left = 24;
-    const top = 168;
+    const { left, top, size } = this.boardRect;
     ctx.fillStyle = "#fffdfa";
     ctx.fillRect(left, top, size, size);
     ctx.strokeStyle = "#191816";
     ctx.lineWidth = 4;
     ctx.strokeRect(left, top, size, size);
-    this.drawPattern(left, top, size);
+    this.drawBoardShapes(left, top, size);
     this.targets.forEach((target) => {
       if (target.found) ctx.globalAlpha = 0.18;
       ctx.save();
@@ -374,18 +416,122 @@ export class FocusGame {
     });
   }
 
-  drawPattern(left, top, size) {
+  drawBoardShapes(left, top, size) {
     const ctx = this.ctx;
-    ctx.strokeStyle = "rgba(25,24,22,.28)";
-    ctx.lineWidth = 1.5;
-    const randomLines = 10 + this.level;
-    for (let i = 0; i < randomLines; i += 1) {
-      const x = left + ((i * 37) % size);
+    ctx.save();
+    ctx.translate(left, top);
+    this.boardShapes.forEach((shape) => {
       ctx.beginPath();
-      ctx.moveTo(x, top);
-      ctx.lineTo(left + ((x + 120) % size), top + size);
+      ctx.fillStyle = shape.fill || "#fffdfa";
+      ctx.strokeStyle = "rgba(25,24,22,.42)";
+      ctx.lineWidth = 1.8;
+      if (shape.type === "ellipse") {
+        ctx.ellipse(shape.cx, shape.cy, shape.rx, shape.ry, 0, 0, Math.PI * 2);
+      } else if (shape.type === "sector") {
+        ctx.arc(shape.cx, shape.cy, shape.outer, shape.a1, shape.a2);
+        ctx.lineTo(shape.cx + Math.cos(shape.a2) * shape.inner, shape.cy + Math.sin(shape.a2) * shape.inner);
+        ctx.arc(shape.cx, shape.cy, shape.inner, shape.a2, shape.a1, true);
+        ctx.closePath();
+      } else {
+        shape.points.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.closePath();
+      }
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    ctx.globalAlpha = 0.18;
+    ctx.strokeStyle = "#d3a00f";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < Math.min(16 + this.level, 54); i += 1) {
+      const x = (i * 71) % size;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo((x + 140) % size, size);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  drawProgressCard(rect) {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgba(255,250,241,.78)";
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    ctx.strokeStyle = "#191816";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+
+    ctx.fillStyle = "#746d62";
+    ctx.font = "bold 19px serif";
+    ctx.textAlign = "left";
+    ctx.fillText(`快速从 1 找到 ${this.maxNumber}`, rect.left + 18, rect.top + 36);
+    ctx.textAlign = "right";
+    ctx.fillText(`${this.elapsed.toFixed(1)}s`, rect.left + rect.width - 18, rect.top + 36);
+    ctx.textAlign = "left";
+
+    const barX = rect.left + 18;
+    const barY = rect.top + 58;
+    const barW = rect.width - 36;
+    const barH = 12;
+    ctx.fillStyle = "rgba(25,24,22,.08)";
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.strokeStyle = "#191816";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barW, barH);
+    const progress = Math.max(0, Math.min(1, (this.next - 1) / this.maxNumber));
+    const gradient = ctx.createLinearGradient(barX, barY, barX + barW, barY);
+    gradient.addColorStop(0, "#12813b");
+    gradient.addColorStop(0.58, "#d3a00f");
+    gradient.addColorStop(1, "#d93b3b");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(barX + 2, barY + 2, Math.max(0, (barW - 4) * progress), barH - 4);
+  }
+
+  drawGameFooter(rect) {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgba(255,250,241,.82)";
+    ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
+    ctx.strokeStyle = "#191816";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(rect.left, rect.top, rect.width, rect.height);
+
+    const items = [
+      ["连击", String(Math.max(0, this.next - 1))],
+      ["最佳", this.best[this.level] ? `${this.best[this.level].toFixed(1)}s` : "--"],
+      ["星级", "--"],
+    ];
+    const colW = rect.width / 3;
+    items.forEach((item, index) => {
+      const cx = rect.left + colW * index + colW / 2;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#746d62";
+      ctx.font = "12px serif";
+      ctx.fillText(item[0], cx, rect.top + 20);
+      ctx.fillStyle = "#191816";
+      ctx.font = "bold 18px serif";
+      ctx.fillText(item[1], cx, rect.top + 44);
+    });
+    ctx.textAlign = "left";
+  }
+
+  drawIconButton(text, x, y, size) {
+    const ctx = this.ctx;
+    ctx.fillStyle = "rgba(255,250,241,.78)";
+    ctx.fillRect(x, y, size, size);
+    ctx.strokeStyle = "#191816";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, size, size);
+    ctx.fillStyle = "#191816";
+    ctx.font = "bold 28px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, x + size / 2, y + size / 2 + 1);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
   }
 
   drawRank() {

@@ -56,6 +56,15 @@ export function createTargets(level, width, height, seedOffset = 0) {
   }));
 }
 
+export function createBoardShapes(level, width, height, seedOffset = 0) {
+  const config = getLevelConfig(level);
+  const random = mulberry32(config.seed + seedOffset + 404);
+  const variant = level % 6;
+  if (variant === 2 || variant === 4) return makeRingShapes(config, width, height, random, variant === 4);
+  if (variant === 3) return makeRibbonShapes(config, width, height, random);
+  return makeGridShapes(config, width, height, random, variant === 5);
+}
+
 function makeCenters(config, random) {
   const variant = config.level % 6;
   if (variant === 1) return makeGridCenters(config, random, 0.42);
@@ -121,3 +130,80 @@ function pickColor(random) {
   return colors[Math.floor(random() * colors.length)];
 }
 
+function makeGridShapes(config, width, height, random, rounded) {
+  const shapes = [];
+  const cellW = width / config.cols;
+  const cellH = height / config.rows;
+  for (let y = 0; y < config.rows; y += 1) {
+    for (let x = 0; x < config.cols; x += 1) {
+      const left = x * cellW;
+      const top = y * cellH;
+      shapes.push({
+        type: rounded ? "ellipse" : "polygon",
+        points: [
+          { x: left + (random() - 0.5) * cellW * 0.18, y: top + (random() - 0.5) * cellH * 0.18 },
+          { x: left + cellW + (random() - 0.5) * cellW * 0.18, y: top + (random() - 0.5) * cellH * 0.18 },
+          { x: left + cellW + (random() - 0.5) * cellW * 0.18, y: top + cellH + (random() - 0.5) * cellH * 0.18 },
+          { x: left + (random() - 0.5) * cellW * 0.18, y: top + cellH + (random() - 0.5) * cellH * 0.18 },
+        ],
+        cx: left + cellW / 2,
+        cy: top + cellH / 2,
+        rx: cellW * 0.46,
+        ry: cellH * 0.4,
+        fill: pickFill(random),
+      });
+    }
+  }
+  return shapes;
+}
+
+function makeRibbonShapes(config, width, height, random) {
+  const shapes = [];
+  const cellW = width / config.cols;
+  const cellH = height / config.rows;
+  for (let y = 0; y < config.rows; y += 1) {
+    for (let x = 0; x < config.cols; x += 1) {
+      const left = x * cellW;
+      const top = y * cellH;
+      const skew = (random() - 0.5) * cellW * 0.36;
+      shapes.push({
+        type: "polygon",
+        points: [
+          { x: left, y: top + (random() - 0.5) * 8 },
+          { x: left + cellW + skew, y: top + (random() - 0.5) * 12 },
+          { x: left + cellW - skew * 0.4, y: top + cellH },
+          { x: left - skew * 0.3, y: top + cellH + (random() - 0.5) * 12 },
+        ],
+        fill: pickFill(random),
+      });
+    }
+  }
+  return shapes;
+}
+
+function makeRingShapes(config, width, height, random, spiral) {
+  const shapes = [];
+  const cx = width / 2;
+  const cy = height / 2;
+  const minRadius = width * 0.08;
+  const maxRadius = width * 0.48;
+  const rings = clamp(Math.ceil(Math.sqrt(config.maxNumber / 1.45)) + 2, 4, 10);
+  const baseSegments = Math.ceil(config.maxNumber / rings);
+  for (let r = 0; r < rings; r += 1) {
+    const inner = minRadius + (r / rings) * (maxRadius - minRadius);
+    const outer = minRadius + ((r + 1) / rings) * (maxRadius - minRadius);
+    const segments = Math.max(5 + r, baseSegments + Math.floor(r * 1.15));
+    const offset = spiral ? r * 0.34 + random() * 0.18 : random() * 0.16;
+    for (let s = 0; s < segments; s += 1) {
+      const a1 = (s / segments) * Math.PI * 2 + offset;
+      const a2 = ((s + 1) / segments) * Math.PI * 2 + offset + (random() - 0.5) * 0.04;
+      shapes.push({ type: "sector", cx, cy, inner, outer, a1, a2, fill: pickFill(random) });
+    }
+  }
+  return shapes;
+}
+
+function pickFill(random) {
+  const fills = ["#fffdfa", "#f4f8ee", "#fff8df", "#eef8ef", "#f7f2ec"];
+  return fills[Math.floor(random() * fills.length)];
+}
