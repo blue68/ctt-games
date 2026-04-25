@@ -2,6 +2,38 @@ const TOTAL_LEVELS = 49;
 const COLORS = ["#191816", "#1727a4", "#12813b", "#d93b3b", "#d3a00f"];
 const PATTERNS = ["plain", "cream", "stripe", "dot", "wash"];
 const STORAGE_KEY = "focus-grid-best-v1";
+const PUBLIC_SHARE_URL = "https://blue68.github.io/ctt-games/";
+const OFFICIAL_QR_MATRIX = [
+  "FFFFFFFBBBFBBBFBBFFFBBFFFFFFF",
+  "FBBBBBFBBFBBBFBBBFBFBBFBBBBBF",
+  "FBFFFBFBFBBFBBBFBBBFBBFBFFFBF",
+  "FBFFFBFBBFBBFFBBBBFBBBFBFFFBF",
+  "FBFFFBFBBFBBFFBBFFFFFBFBFFFBF",
+  "FBBBBBFBBBFFFBFFFBFFBBFBBBBBF",
+  "FFFFFFFBFBFBFBFBFBFBFBFFFFFFF",
+  "BBBBBBBBFBBFBBBBFFFBBBBBBBBBB",
+  "FFFBFFFFFBBBFBBFFFFBFFFBBBFBB",
+  "BBBBFBBFFFBFFFBBBBBBFBFFBFBBF",
+  "BBFBBBFFBBFFFBFBBFBBBFFFFBFFF",
+  "BFFFBBBBFFFBFFFBBFFFFFFBBBBFB",
+  "BBBFBBFBFBFFBBFBBFBBBBFBBFBFF",
+  "BFFBFFBBFBFFBBFBFFBBFBFBBFBBF",
+  "BFFBFBFFBFBBBFBBBFFBFBBFFFBFF",
+  "BBFFBFBBBBBFBBBFFFFFBFBBBFBFB",
+  "FBBFFFFFBFBBFBBBFFBFFBFFBFBFF",
+  "BBFBFFBFFBFFFFBBFFFBFFFBBFFBF",
+  "FBBFFBFFBBBFFBFBBBBBFFBBFBBFF",
+  "BFBFFFBBFFBBFFFFFFBFFFFBFFBFB",
+  "FBFFBBFBBFFFBBFFFFBBFFFFFBBBB",
+  "BBBBBBBBFBBFBBFBFFFBFBBBFBFFF",
+  "FFFFFFFBFFFBBFBBBBBFFBFBFFBFF",
+  "FBBBBBFBFBBFBBBFBFBBFBBBFFBBF",
+  "FBFFFBFBFFBBFBBBFFFBFFFFFBBBF",
+  "FBFFFBFBBFFFFFBBFBBBBBBFFBFFF",
+  "FBFFFBFBFBBFFBFBBBBBBBBFFFBBF",
+  "FBBBBBFBFFFBFFFBFFFFFBBFFBBFB",
+  "FFFFFFFBFFBFBBFBFFBFFFBBFBBFF",
+];
 const QUOTES = [
   { type: "励志格言", text: "真正的速度，来自一次只做一件事的专注。" },
   { type: "哲学格言", text: "世界很吵，能把目光收回来的人，已经赢了一半。" },
@@ -859,12 +891,13 @@ function drawPosterCard(ctx, result, width) {
   wrapCanvasText(ctx, "长按保存海报，发朋友圈邀请好友挑战你的专注力。", x + 54, y + 1508, cardW - 108, 48, 2);
 
   ctx.fillStyle = "#191816";
-  ctx.fillRect(x + 54, y + 1632, cardW - 108, 4);
-  ctx.font = "900 36px Songti SC, serif";
-  ctx.fillText("扫码入口可替换为正式上线二维码", x + 54, y + 1704);
+  ctx.fillRect(x + 54, y + 1606, cardW - 108, 4);
+  ctx.font = "900 42px Songti SC, serif";
+  ctx.fillText("扫码挑战", x + 54, y + 1682);
   ctx.fillStyle = "#746d62";
   ctx.font = "700 28px Songti SC, serif";
-  wrapCanvasText(ctx, getShareUrl(), x + 54, y + 1756, cardW - 108, 38, 2);
+  wrapCanvasText(ctx, "长按识别二维码，开始你的 49 关专注力训练。", x + 54, y + 1736, 520, 40, 2);
+  drawQrCode(ctx, getShareUrl(), x + cardW - 316, y + 1562, 250);
 }
 
 function drawPosterMetric(ctx, x, y, label, value) {
@@ -947,9 +980,38 @@ function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 10) {
 }
 
 function getShareUrl() {
-  const url = new URL(window.location.href);
-  url.searchParams.delete("level");
-  return url.toString();
+  return PUBLIC_SHARE_URL;
+}
+
+function drawQrCode(ctx, text, x, y, size) {
+  const qr = makeQrCode(text);
+  const quiet = 4;
+  const modules = qr.length + quiet * 2;
+  const cell = Math.floor(size / modules);
+  const actualSize = cell * modules;
+
+  ctx.save();
+  ctx.fillStyle = "#fffdfa";
+  ctx.fillRect(x, y, actualSize, actualSize);
+  ctx.strokeStyle = "#191816";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(x, y, actualSize, actualSize);
+
+  ctx.fillStyle = "#191816";
+  qr.forEach((row, rowIndex) => {
+    row.forEach((filled, colIndex) => {
+      if (!filled) return;
+      ctx.fillRect(x + (colIndex + quiet) * cell, y + (rowIndex + quiet) * cell, cell, cell);
+    });
+  });
+  ctx.restore();
+}
+
+function makeQrCode(text) {
+  if (text !== PUBLIC_SHARE_URL) {
+    console.warn("Poster QR uses the official public URL:", PUBLIC_SHARE_URL);
+  }
+  return OFFICIAL_QR_MATRIX.map((row) => Array.from(row, (cell) => cell === "F"));
 }
 
 function dataUrlToFile(dataUrl, filename) {
