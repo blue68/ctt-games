@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+  <defs>
+    <linearGradient id="bg" x1="16" y1="12" x2="132" y2="136" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff7df"/>
+      <stop offset=".55" stop-color="#f2d79f"/>
+      <stop offset="1" stop-color="#dfe9d8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#5b3f1f" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <rect width="144" height="144" rx="30" fill="url(#bg)"/>
+  <path d="M18 92C34 42 110 42 126 92C108 124 36 124 18 92Z" fill="#fffdfa" stroke="#191816" stroke-width="7" filter="url(#shadow)"/>
+  <circle cx="72" cy="84" r="26" fill="#191816"/>
+  <circle cx="72" cy="84" r="15" fill="#d3a00f"/>
+  <circle cx="78" cy="78" r="6" fill="#fffdfa"/>
+  <path d="M27 29h90v25H27z" fill="#191816"/>
+  <text x="72" y="49" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="22" font-weight="900" fill="#fffaf1">49</text>
+  <text x="72" y="132" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="21" font-weight="900" fill="#191816">找数王</text>
+  <path d="M24 68l18-12M120 68l-18-12" stroke="#d93b3b" stroke-width="6" stroke-linecap="round"/>
+</svg>
