@@ -1021,6 +1021,7 @@ initFromUrl();
 
 function initFromUrl() {
   const params = new URLSearchParams(window.location.search);
+  if (!params.has("level")) return;
   const level = Number(params.get("level"));
   if (!Number.isInteger(level)) return;
   startLevel(clamp(level, 1, TOTAL_LEVELS));
