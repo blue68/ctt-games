@@ -1,3 +1,4 @@
 .DS_Store
 .playwright-mcp/
 level-*.png
+wechat-game/project.private.config.json

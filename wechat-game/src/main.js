@@ -32,6 +32,7 @@ export class FocusGame {
     this.isMarathon = false;
     this.pkRoom = null;
     this.rankList = [];
+    this.authButton = null;
     this.best = wx.getStorageSync(STORAGE_KEYS.best) || {};
     this.marathon = wx.getStorageSync(STORAGE_KEYS.marathon) || { level: 1, bestLevel: 1 };
     this.user = wx.getStorageSync(STORAGE_KEYS.user) || null;
@@ -228,6 +229,7 @@ export class FocusGame {
   }
 
   createAuthButton() {
+    if (this.authButton) return;
     const button = wx.createUserInfoButton({
       type: "text",
       text: "授权微信头像昵称",
@@ -249,8 +251,10 @@ export class FocusGame {
         this.user = { ...(this.user || {}), userInfo: res.userInfo };
         wx.setStorageSync(STORAGE_KEYS.user, this.user);
         button.destroy();
+        this.authButton = null;
       }
     });
+    this.authButton = button;
   }
 
   sharePoster() {

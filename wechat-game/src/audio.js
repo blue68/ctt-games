@@ -73,9 +73,23 @@ function writeString(view, offset, value) {
 }
 
 function arrayBufferToBase64(buffer) {
-  let binary = "";
+  if (wx.arrayBufferToBase64) return wx.arrayBufferToBase64(buffer);
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i += 1) binary += String.fromCharCode(bytes[i]);
-  return wx.arrayBufferToBase64 ? wx.arrayBufferToBase64(buffer) : btoa(binary);
-}
+  let result = "";
+  let i = 0;
 
+  for (; i + 2 < bytes.length; i += 3) {
+    const value = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    result += chars[(value >> 18) & 63] + chars[(value >> 12) & 63] + chars[(value >> 6) & 63] + chars[value & 63];
+  }
+
+  if (i < bytes.length) {
+    const value = bytes[i] << 16 | ((bytes[i + 1] || 0) << 8);
+    result += chars[(value >> 18) & 63] + chars[(value >> 12) & 63];
+    result += i + 1 < bytes.length ? chars[(value >> 6) & 63] : "=";
+    result += "=";
+  }
+
+  return result;
+}
