@@ -3,23 +3,52 @@ export function createSharePoster(canvas, gameState) {
   const width = canvas.width;
   const height = canvas.height;
   ctx.save();
-  ctx.fillStyle = "#f8efe2";
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#fff7ea");
+  gradient.addColorStop(0.55, "#f1d7a5");
+  gradient.addColorStop(1, "#dfe9d8");
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(25,24,22,.12)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i += 1) {
+    ctx.beginPath();
+    ctx.arc(width - 60, 64 + i * 18, 90 + i * 42, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  roundRect(ctx, 24, 24, width - 48, height - 48, 26, "rgba(255,250,241,.94)", "#191816", 6);
+  roundRect(ctx, 48, 48, 126, 34, 17, "#191816", null, 0);
+  ctx.fillStyle = "#fffaf1";
+  ctx.font = "bold 15px serif";
+  ctx.fillText("FOCUS GRID", 62, 70);
+
   ctx.fillStyle = "#191816";
-  ctx.font = "bold 34px serif";
-  ctx.fillText("视觉专注力训练", 36, 72);
+  ctx.font = "bold 42px serif";
+  ctx.fillText("眼力冲关王", 48, 124);
+  ctx.font = "18px serif";
+  ctx.fillStyle = "#746d62";
+  ctx.fillText(`${gameState.nickname || "眼力挑战者"} 正在挑战你的专注力`, 50, 158);
+
+  drawEye(ctx, width - 138, 88);
+  drawMetric(ctx, 48, 192, "关卡", `${gameState.level}/49`);
+  drawMetric(ctx, 190, 192, "目标", `1-${gameState.maxNumber}`);
+  drawMetric(ctx, 332, 192, "用时", `${gameState.elapsed.toFixed(1)}s`);
+
+  ctx.fillStyle = "#191816";
   ctx.font = "bold 24px serif";
-  ctx.fillText(`第 ${gameState.level} 关挑战`, 36, 124);
-  ctx.fillText(`目标 1-${gameState.maxNumber}`, 36, 164);
-  ctx.fillText(`用时 ${gameState.elapsed.toFixed(1)}s`, 36, 204);
-  ctx.strokeStyle = "#191816";
-  ctx.lineWidth = 8;
-  ctx.strokeRect(28, 28, width - 56, height - 56);
-  ctx.fillStyle = "#d3a00f";
-  ctx.fillRect(36, height - 116, width - 72, 58);
+  ctx.fillText("在复杂图形中快速找数", 48, 306);
+  ctx.font = "16px serif";
+  ctx.fillStyle = "#746d62";
+  ctx.fillText("49 关递进训练，看看谁才是真正的鹰眼。", 48, 334);
+
+  roundRect(ctx, 48, height - 94, width - 96, 52, 16, "#d3a00f", "#191816", 3);
   ctx.fillStyle = "#191816";
-  ctx.font = "bold 22px serif";
-  ctx.fillText("长按进入，挑战你的专注力", 58, height - 78);
+  ctx.font = "bold 20px serif";
+  ctx.textAlign = "center";
+  ctx.fillText("点击进入，挑战我的成绩", width / 2, height - 61);
+  ctx.textAlign = "left";
   ctx.restore();
   return canvas.toTempFilePathSync({
     x: 0,
@@ -31,3 +60,63 @@ export function createSharePoster(canvas, gameState) {
   });
 }
 
+function drawMetric(ctx, x, y, label, value) {
+  roundRect(ctx, x, y, 118, 78, 14, "rgba(255,255,255,.64)", "#191816", 2);
+  ctx.fillStyle = "#746d62";
+  ctx.font = "14px serif";
+  ctx.fillText(label, x + 16, y + 27);
+  ctx.fillStyle = "#191816";
+  ctx.font = "bold 25px serif";
+  ctx.fillText(value, x + 16, y + 58);
+}
+
+function drawEye(ctx, cx, cy) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = "#fffdfa";
+  ctx.strokeStyle = "#191816";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-58, 22);
+  ctx.quadraticCurveTo(0, -32, 58, 22);
+  ctx.quadraticCurveTo(0, 64, -58, 22);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#191816";
+  ctx.beginPath();
+  ctx.arc(0, 24, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#d3a00f";
+  ctx.beginPath();
+  ctx.arc(0, 24, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#fffdfa";
+  ctx.beginPath();
+  ctx.arc(7, 16, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill, stroke, lineWidth = 1) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+  if (fill) {
+    ctx.fillStyle = fill;
+    ctx.fill();
+  }
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = lineWidth;
+    ctx.stroke();
+  }
+}
