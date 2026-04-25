@@ -36,6 +36,20 @@ python3 -m http.server 8080
 http://localhost:8080/?level=49
 ```
 
+## 微信小游戏版本
+
+微信小游戏工程位于 `wechat-game/`，可用微信开发者工具导入该目录运行。小游戏版本在 H5 玩法基础上增加：
+
+- 音效开关。
+- 自主选关。
+- 连续冲关进度记忆。
+- 微信授权入口。
+- 云开发 TOP100 排行榜。
+- 微信海报分享。
+- 对战 PK 模式。
+
+详细接入步骤见 [wechat-game/README.md](./wechat-game/README.md)。
+
 ## 玩法
 
 - 点击“开始训练”进入第 1 关。

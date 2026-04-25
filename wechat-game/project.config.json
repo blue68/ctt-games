@@ -1,0 +1,15 @@
+{
+  "description": "视觉专注力训练微信小游戏",
+  "appid": "touristappid",
+  "projectname": "ctt-focus-game",
+  "compileType": "game",
+  "miniprogramRoot": "./",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": false,
+    "minified": true
+  }
+}
