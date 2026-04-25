@@ -2,6 +2,24 @@
 
 一个适合微信朋友圈传播的纯静态 H5 小游戏：从 1 开始按顺序点击数字，49 个关卡，数字数量、颜色干扰、图形密度和字号逐关提升。
 
+## 线上访问
+
+生产地址：
+
+```text
+https://blue68.github.io/ctt-games/
+```
+
+第 49 关直达：
+
+```text
+https://blue68.github.io/ctt-games/?level=49
+```
+
+## 宣传效果图
+
+![视觉专注力训练 H5 宣传效果图](./assets/promo.png)
+
 ## 运行
 
 直接打开 `index.html`，或启动本地静态服务器：
