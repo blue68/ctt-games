@@ -198,14 +198,14 @@ export class FocusGame {
     this.elapsed = 0;
     this.isMarathon = marathon;
     this.seedOffset = seedOffset;
-    this.buildLevelLayout();
+    this.buildLevelLayout(false);
     this.startedAt = Date.now();
     this.mode = marathon ? MODES.MARATHON : MODES.GAME;
   }
 
-  buildLevelLayout() {
+  buildLevelLayout(preserveFound = true) {
     const metrics = this.getGameMetrics();
-    const foundNumbers = new Set(this.targets.filter((target) => target.found).map((target) => target.number));
+    const foundNumbers = preserveFound ? new Set(this.targets.filter((target) => target.found).map((target) => target.number)) : new Set();
     const hitRadius = this.getTargetHitRadius(metrics.board);
     this.boardRect = metrics.board;
     this.boardShapes = createBoardShapes(this.level, metrics.board.width, metrics.board.height, this.seedOffset);
@@ -221,7 +221,7 @@ export class FocusGame {
   relayoutGame() {
     if (!this.targets.length) return;
     if (![MODES.GAME, MODES.MARATHON, MODES.PK, MODES.PAUSE].includes(this.mode)) return;
-    this.buildLevelLayout();
+    this.buildLevelLayout(true);
   }
 
   pauseGame() {
