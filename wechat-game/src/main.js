@@ -19,8 +19,11 @@ export class FocusGame {
   constructor() {
     this.canvas = wx.createCanvas();
     this.ctx = this.canvas.getContext("2d");
-    this.w = this.canvas.width;
-    this.h = this.canvas.height;
+    this.systemInfo = {};
+    this.pixelRatio = 1;
+    this.safeTop = 24;
+    this.safeBottom = 0;
+    this.configureCanvas();
     this.sound = new SoundManager();
     this.cloud = new CloudService();
     this.mode = MODES.HOME;
@@ -47,6 +50,10 @@ export class FocusGame {
   start() {
     this.cloud.init();
     this.cloud.login().catch(() => {});
+    wx.onWindowResize?.(() => {
+      this.configureCanvas();
+      this.relayoutGame();
+    });
     this.bindTouch();
     this.setupShare();
     const options = wx.getLaunchOptionsSync?.();
@@ -58,6 +65,24 @@ export class FocusGame {
       this.mode = MODES.PK;
     }
     this.loop();
+  }
+
+  configureCanvas() {
+    const info = wx.getSystemInfoSync?.() || {};
+    const width = info.windowWidth || this.canvas.width || 375;
+    const height = info.windowHeight || this.canvas.height || 667;
+    const ratio = info.pixelRatio || 1;
+    this.systemInfo = info;
+    this.pixelRatio = ratio;
+    this.w = width;
+    this.h = height;
+    this.canvas.width = Math.round(width * ratio);
+    this.canvas.height = Math.round(height * ratio);
+    this.ctx = this.canvas.getContext("2d");
+    this.ctx.scale(ratio, ratio);
+    const safeArea = info.safeArea || {};
+    this.safeTop = Math.max(18, safeArea.top || info.statusBarHeight || 24);
+    this.safeBottom = Math.max(0, height - (safeArea.bottom || height));
   }
 
   bindTouch() {
@@ -171,7 +196,6 @@ export class FocusGame {
 
   startLevel(level, marathon, seedOffset = 0) {
     const config = getLevelConfig(level);
-    const metrics = this.getGameMetrics();
     this.level = level;
     this.maxNumber = config.maxNumber;
     this.next = 1;
@@ -179,15 +203,30 @@ export class FocusGame {
     this.elapsed = 0;
     this.isMarathon = marathon;
     this.seedOffset = seedOffset;
+    this.buildLevelLayout();
+    this.startedAt = Date.now();
+    this.mode = marathon ? MODES.MARATHON : MODES.GAME;
+  }
+
+  buildLevelLayout() {
+    const metrics = this.getGameMetrics();
+    const foundNumbers = new Set(this.targets.filter((target) => target.found).map((target) => target.number));
+    const hitRadius = this.getTargetHitRadius(metrics.board.size);
     this.boardRect = metrics.board;
-    this.boardShapes = createBoardShapes(level, metrics.board.size, metrics.board.size, seedOffset);
-    this.targets = createTargets(level, metrics.board.size, metrics.board.size, seedOffset).map((target) => ({
+    this.boardShapes = createBoardShapes(this.level, metrics.board.size, metrics.board.size, this.seedOffset);
+    this.targets = createTargets(this.level, metrics.board.size, metrics.board.size, this.seedOffset).map((target) => ({
       ...target,
+      found: foundNumbers.has(target.number),
+      hitRadius,
       x: target.x + metrics.board.left,
       y: target.y + metrics.board.top,
     }));
-    this.startedAt = Date.now();
-    this.mode = marathon ? MODES.MARATHON : MODES.GAME;
+  }
+
+  relayoutGame() {
+    if (!this.targets.length) return;
+    if (![MODES.GAME, MODES.MARATHON, MODES.PK, MODES.PAUSE].includes(this.mode)) return;
+    this.buildLevelLayout();
   }
 
   pauseGame() {
@@ -222,12 +261,17 @@ export class FocusGame {
   }
 
   findNearestTarget(x, y) {
+    const board = this.boardRect;
+    const edgePadding = this.getTargetHitRadius(board.size) * 0.7;
+    if (!this.hit(x, y, board.left - edgePadding, board.top - edgePadding, board.size + edgePadding * 2, board.size + edgePadding * 2)) {
+      return null;
+    }
     let nearest = null;
     let distance = Infinity;
     this.targets.forEach((target) => {
       if (target.found) return;
       const current = Math.hypot(target.x - x, target.y - y);
-      if (current < distance) {
+      if (current <= target.hitRadius && current < distance) {
         nearest = target;
         distance = current;
       }
@@ -359,34 +403,55 @@ export class FocusGame {
   }
 
   getGameMetrics() {
-    const safeTop = 24;
-    const horizontal = 14;
-    const maxWidth = Math.min(this.w - horizontal * 2, 560);
+    const compact = this.h < 720;
+    const safeTop = Math.max(12, this.safeTop - (compact ? 8 : 0));
+    const horizontal = this.w < 380 ? 8 : 10;
+    const maxWidth = Math.min(this.w - horizontal * 2, 640);
     const left = (this.w - maxWidth) / 2;
     const headerTop = safeTop;
+    const buttonSize = clamp(this.w * 0.13, 44, 56);
+    const progressTop = headerTop + (compact ? 76 : 90);
+    const progressHeight = compact ? 76 : 88;
     const progress = {
       left,
-      top: headerTop + 92,
+      top: progressTop,
       width: maxWidth,
-      height: 92,
+      height: progressHeight,
     };
-    const footerHeight = 58;
-    const footerTop = this.h - footerHeight - 18;
-    const availableBoard = footerTop - (progress.top + progress.height) - 26;
-    const boardSize = Math.max(260, Math.min(maxWidth, availableBoard));
+    const footerHeight = this.h < 700 ? 0 : 52;
+    const bottomMargin = Math.max(8, this.safeBottom + 10);
+    const footerGap = footerHeight ? 10 : 0;
+    const boardTop = progress.top + progress.height + (compact ? 12 : 18);
+    const bottomLimit = this.h - bottomMargin - footerHeight - footerGap;
+    const availableBoard = bottomLimit - boardTop;
+    const boardSize = clamp(Math.min(maxWidth, availableBoard), Math.min(maxWidth, 286), maxWidth);
     const board = {
       left: (this.w - boardSize) / 2,
-      top: progress.top + progress.height + 24,
+      top: boardTop,
       size: boardSize,
     };
     return {
       headerTop,
-      back: { left, top: safeTop + 6, size: 50 },
-      pause: { left: left + maxWidth - 50, top: safeTop + 6, size: 50 },
+      back: { left, top: safeTop + 4, size: buttonSize },
+      pause: { left: left + maxWidth - buttonSize, top: safeTop + 4, size: buttonSize },
       progress,
       board,
-      footer: { left, top: board.top + board.size + 14, width: maxWidth, height: footerHeight },
+      footer: { left, top: board.top + board.size + footerGap, width: maxWidth, height: footerHeight },
     };
+  }
+
+  getTargetFontSize(boardSize = this.boardRect.size) {
+    const config = getLevelConfig(this.level);
+    const scale = clamp(boardSize / 360, 0.94, 1.22);
+    return clamp(config.fontSize * scale, 14, 38);
+  }
+
+  getTargetHitRadius(boardSize = this.boardRect.size) {
+    const config = getLevelConfig(this.level);
+    const scale = clamp(boardSize / 360, 0.95, 1.26);
+    const density = clamp(config.maxNumber / 100, 0.12, 1);
+    const difficultyCompensation = 10 - density * 4;
+    return clamp(config.hitRadius * scale + difficultyCompensation, 26, 46);
   }
 
   render() {
@@ -558,7 +623,7 @@ export class FocusGame {
       ctx.translate(target.x, target.y);
       ctx.rotate(target.tilt);
       ctx.fillStyle = target.color;
-      ctx.font = `bold ${getLevelConfig(this.level).fontSize}px sans-serif`;
+      ctx.font = `bold ${this.getTargetFontSize(size)}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(target.number), 0, 0);
@@ -643,6 +708,7 @@ export class FocusGame {
   }
 
   drawGameFooter(rect) {
+    if (!rect.height) return;
     const ctx = this.ctx;
     ctx.fillStyle = "rgba(255,250,241,.82)";
     ctx.fillRect(rect.left, rect.top, rect.width, rect.height);
