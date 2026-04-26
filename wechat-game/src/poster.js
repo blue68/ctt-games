@@ -29,7 +29,7 @@ export function createSharePoster(canvas, gameState) {
   ctx.fillText("眼力冲关王", 48, 124);
   ctx.font = "18px serif";
   ctx.fillStyle = "#746d62";
-  ctx.fillText(`${gameState.nickname || "眼力挑战者"} 正在挑战你的专注力`, 50, 158);
+  ctx.fillText("视觉观察小游戏成绩记录", 50, 158);
 
   drawEye(ctx, width - 138, 88);
   drawMetric(ctx, 48, 192, "关卡", `${gameState.level}/49`);
@@ -41,13 +41,13 @@ export function createSharePoster(canvas, gameState) {
   ctx.fillText("在复杂图形中快速找数", 48, 306);
   ctx.font = "16px serif";
   ctx.fillStyle = "#746d62";
-  ctx.fillText("49 关递进训练，看看谁才是真正的鹰眼。", 48, 334);
+  ctx.fillText("49 个关卡，记录观察速度与完成进度。", 48, 334);
 
   roundRect(ctx, 48, height - 94, width - 96, 52, 16, "#d3a00f", "#191816", 3);
   ctx.fillStyle = "#191816";
   ctx.font = "bold 20px serif";
   ctx.textAlign = "center";
-  ctx.fillText("点击进入，挑战我的成绩", width / 2, height - 61);
+  ctx.fillText("打开小程序查看游戏", width / 2, height - 61);
   ctx.textAlign = "left";
   ctx.restore();
   return canvas.toTempFilePathSync({

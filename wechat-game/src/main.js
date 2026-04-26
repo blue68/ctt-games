@@ -98,7 +98,7 @@ export class FocusGame {
   setupShare() {
     wx.showShareMenu?.({ withShareTicket: true });
     wx.onShareAppMessage?.(() => ({
-      title: "我在挑战 49 关视觉专注力训练，你也来试试？",
+      title: "眼力冲关王｜视觉观察小游戏",
       imageUrl: this.makeShareImage(),
       query: "",
     }));
@@ -307,7 +307,7 @@ export class FocusGame {
     const room = await this.cloud.createPkRoom({ level, seedOffset });
     this.pkRoom = room.result?.roomId || `local-${seedOffset}`;
     wx.shareAppMessage({
-      title: `我发起了第 ${level} 关专注力 PK，来战！`,
+      title: `眼力冲关王｜第 ${level} 关对战房间`,
       imageUrl: this.makeShareImage(),
       query: `pkRoom=${this.pkRoom}&level=${level}&seed=${seedOffset}`,
     });
@@ -361,7 +361,7 @@ export class FocusGame {
 
   sharePoster() {
     wx.shareAppMessage({
-      title: `我完成了第 ${this.lastScore.level} 关，用时 ${this.lastScore.elapsed}s`,
+      title: `眼力冲关王｜第 ${this.lastScore.level} 关成绩记录`,
       imageUrl: this.makeShareImage(),
       query: "",
     });
