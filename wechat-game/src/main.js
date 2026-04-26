@@ -20,6 +20,7 @@ export class FocusGame {
     this.canvas = wx.createCanvas();
     this.ctx = this.canvas.getContext("2d");
     this.systemInfo = {};
+    this.menuButton = null;
     this.pixelRatio = 1;
     this.safeTop = 24;
     this.safeBottom = 0;
@@ -32,7 +33,7 @@ export class FocusGame {
     this.combo = 0;
     this.targets = [];
     this.boardShapes = [];
-    this.boardRect = { left: 24, top: 168, size: 0 };
+    this.boardRect = { left: 24, top: 168, width: 0, height: 0, size: 0 };
     this.startedAt = 0;
     this.elapsed = 0;
     this.seedOffset = 0;
@@ -81,6 +82,7 @@ export class FocusGame {
     this.ctx = this.canvas.getContext("2d");
     this.ctx.scale(ratio, ratio);
     const safeArea = info.safeArea || {};
+    this.menuButton = wx.getMenuButtonBoundingClientRect?.() || null;
     this.safeTop = Math.max(18, safeArea.top || info.statusBarHeight || 24);
     this.safeBottom = Math.max(0, height - (safeArea.bottom || height));
   }
@@ -135,18 +137,11 @@ export class FocusGame {
   }
 
   tapSelect(x, y) {
-    if (this.hit(x, y, 24, 30, 70, 42)) return (this.mode = MODES.HOME);
-    const cols = 7;
-    const cell = (this.w - 40) / cols;
-    for (let index = 0; index < TOTAL_LEVELS; index += 1) {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      const left = 20 + col * cell;
-      const top = 112 + row * 56;
-      if (this.hit(x, y, left, top, cell - 8, 44)) {
-        return this.startLevel(index + 1, false);
-      }
-    }
+    const metrics = this.getSelectMetrics();
+    if (this.hitRect(x, y, metrics.back)) return (this.mode = MODES.HOME);
+    metrics.cells.forEach((cell, index) => {
+      if (this.hitRect(x, y, cell)) this.startLevel(index + 1, false);
+    });
   }
 
   tapRank(x, y) {
@@ -211,10 +206,10 @@ export class FocusGame {
   buildLevelLayout() {
     const metrics = this.getGameMetrics();
     const foundNumbers = new Set(this.targets.filter((target) => target.found).map((target) => target.number));
-    const hitRadius = this.getTargetHitRadius(metrics.board.size);
+    const hitRadius = this.getTargetHitRadius(metrics.board);
     this.boardRect = metrics.board;
-    this.boardShapes = createBoardShapes(this.level, metrics.board.size, metrics.board.size, this.seedOffset);
-    this.targets = createTargets(this.level, metrics.board.size, metrics.board.size, this.seedOffset).map((target) => ({
+    this.boardShapes = createBoardShapes(this.level, metrics.board.width, metrics.board.height, this.seedOffset);
+    this.targets = createTargets(this.level, metrics.board.width, metrics.board.height, this.seedOffset).map((target) => ({
       ...target,
       found: foundNumbers.has(target.number),
       hitRadius,
@@ -262,8 +257,8 @@ export class FocusGame {
 
   findNearestTarget(x, y) {
     const board = this.boardRect;
-    const edgePadding = this.getTargetHitRadius(board.size) * 0.7;
-    if (!this.hit(x, y, board.left - edgePadding, board.top - edgePadding, board.size + edgePadding * 2, board.size + edgePadding * 2)) {
+    const edgePadding = this.getTargetHitRadius(board) * 0.7;
+    if (!this.hit(x, y, board.left - edgePadding, board.top - edgePadding, board.width + edgePadding * 2, board.height + edgePadding * 2)) {
       return null;
     }
     let nearest = null;
@@ -405,50 +400,87 @@ export class FocusGame {
   getGameMetrics() {
     const compact = this.h < 720;
     const safeTop = Math.max(12, this.safeTop - (compact ? 8 : 0));
-    const horizontal = this.w < 380 ? 8 : 10;
-    const maxWidth = Math.min(this.w - horizontal * 2, 640);
+    const horizontal = this.w < 380 ? 4 : 6;
+    const maxWidth = this.w - horizontal * 2;
     const left = (this.w - maxWidth) / 2;
     const headerTop = safeTop;
     const buttonSize = clamp(this.w * 0.13, 44, 56);
-    const progressTop = headerTop + (compact ? 76 : 90);
-    const progressHeight = compact ? 76 : 88;
+    const progressTop = headerTop + (compact ? 70 : 82);
+    const progressHeight = compact ? 68 : 78;
     const progress = {
       left,
       top: progressTop,
       width: maxWidth,
       height: progressHeight,
     };
-    const footerHeight = this.h < 700 ? 0 : 52;
-    const bottomMargin = Math.max(8, this.safeBottom + 10);
-    const footerGap = footerHeight ? 10 : 0;
-    const boardTop = progress.top + progress.height + (compact ? 12 : 18);
+    const footerHeight = this.h < 760 ? 0 : 52;
+    const bottomMargin = Math.max(6, this.safeBottom + 6);
+    const footerGap = footerHeight ? 8 : 0;
+    const boardTop = progress.top + progress.height + (compact ? 8 : 10);
     const bottomLimit = this.h - bottomMargin - footerHeight - footerGap;
-    const availableBoard = bottomLimit - boardTop;
-    const boardSize = clamp(Math.min(maxWidth, availableBoard), Math.min(maxWidth, 286), maxWidth);
+    const availableHeight = Math.max(286, bottomLimit - boardTop);
+    const boardWidth = maxWidth;
+    const boardHeight = availableHeight;
+    const menu = this.menuButton;
+    const pauseLeft = menu?.left ? Math.min(left + maxWidth - buttonSize, menu.left - buttonSize - 8) : left + maxWidth - buttonSize;
     const board = {
-      left: (this.w - boardSize) / 2,
+      left,
       top: boardTop,
-      size: boardSize,
+      width: boardWidth,
+      height: boardHeight,
+      size: Math.min(boardWidth, boardHeight),
     };
     return {
       headerTop,
       back: { left, top: safeTop + 4, size: buttonSize },
-      pause: { left: left + maxWidth - buttonSize, top: safeTop + 4, size: buttonSize },
+      pause: { left: Math.max(left, pauseLeft), top: safeTop + 4, size: buttonSize },
       progress,
       board,
-      footer: { left, top: board.top + board.size + footerGap, width: maxWidth, height: footerHeight },
+      footer: { left, top: board.top + board.height + footerGap, width: maxWidth, height: footerHeight },
     };
   }
 
-  getTargetFontSize(boardSize = this.boardRect.size) {
+  getSelectMetrics() {
+    const cols = this.h / this.w > 1.95 ? 5 : 7;
+    const rows = Math.ceil(TOTAL_LEVELS / cols);
+    const marginX = this.w < 380 ? 16 : 24;
+    const top = Math.max(112, this.safeTop + 86);
+    const bottom = Math.max(20, this.safeBottom + 24);
+    const gap = this.w < 380 ? 8 : 10;
+    const availableWidth = this.w - marginX * 2;
+    const availableHeight = this.h - top - bottom;
+    const cellWidth = (availableWidth - gap * (cols - 1)) / cols;
+    const cellHeight = (availableHeight - gap * (rows - 1)) / rows;
+    const size = clamp(Math.min(cellWidth, cellHeight), 44, 86);
+    const gridWidth = size * cols + gap * (cols - 1);
+    const gridLeft = (this.w - gridWidth) / 2;
+    const cells = [];
+    for (let index = 0; index < TOTAL_LEVELS; index += 1) {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      cells.push({
+        left: gridLeft + col * (size + gap),
+        top: top + row * (size + gap),
+        width: size,
+        height: size,
+      });
+    }
+    return {
+      back: { left: marginX, top: Math.max(30, this.safeTop + 8), width: 76, height: 46 },
+      titleY: Math.max(64, this.safeTop + 44),
+      cells,
+    };
+  }
+
+  getTargetFontSize(board = this.boardRect) {
     const config = getLevelConfig(this.level);
-    const scale = clamp(boardSize / 360, 0.94, 1.22);
+    const scale = clamp(Math.sqrt((board.width * board.height) / (360 * 360)), 0.94, 1.28);
     return clamp(config.fontSize * scale, 14, 38);
   }
 
-  getTargetHitRadius(boardSize = this.boardRect.size) {
+  getTargetHitRadius(board = this.boardRect) {
     const config = getLevelConfig(this.level);
-    const scale = clamp(boardSize / 360, 0.95, 1.26);
+    const scale = clamp(Math.sqrt((board.width * board.height) / (360 * 360)), 0.95, 1.34);
     const density = clamp(config.maxNumber / 100, 0.12, 1);
     const difficultyCompensation = 10 - density * 4;
     return clamp(config.hitRadius * scale + difficultyCompensation, 26, 46);
@@ -508,17 +540,14 @@ export class FocusGame {
   }
 
   drawSelect() {
-    this.backButton();
+    const metrics = this.getSelectMetrics();
+    this.button("←", metrics.back.left, metrics.back.top, metrics.back.width, metrics.back.height);
     this.ctx.fillStyle = "#191816";
-    this.ctx.font = "bold 28px serif";
-    this.ctx.fillText("自主选关", 116, 64);
-    const cols = 7;
-    const cell = (this.w - 40) / cols;
-    for (let index = 0; index < TOTAL_LEVELS; index += 1) {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      this.button(String(index + 1), 20 + col * cell, 112 + row * 56, cell - 8, 44);
-    }
+    this.ctx.font = "bold 30px serif";
+    this.ctx.fillText("自主选关", metrics.back.left + metrics.back.width + 26, metrics.titleY);
+    metrics.cells.forEach((cell, index) => {
+      this.button(String(index + 1), cell.left, cell.top, cell.width, cell.height);
+    });
   }
 
   drawHeroStats(rect) {
@@ -610,20 +639,20 @@ export class FocusGame {
 
   drawBoard() {
     const ctx = this.ctx;
-    const { left, top, size } = this.boardRect;
+    const { left, top, width, height } = this.boardRect;
     ctx.fillStyle = "#fffdfa";
-    ctx.fillRect(left, top, size, size);
+    ctx.fillRect(left, top, width, height);
     ctx.strokeStyle = "#191816";
     ctx.lineWidth = 4;
-    ctx.strokeRect(left, top, size, size);
-    this.drawBoardShapes(left, top, size);
+    ctx.strokeRect(left, top, width, height);
+    this.drawBoardShapes(left, top, width, height);
     this.targets.forEach((target) => {
       if (target.found) ctx.globalAlpha = 0.18;
       ctx.save();
       ctx.translate(target.x, target.y);
       ctx.rotate(target.tilt);
       ctx.fillStyle = target.color;
-      ctx.font = `bold ${this.getTargetFontSize(size)}px sans-serif`;
+      ctx.font = `bold ${this.getTargetFontSize(this.boardRect)}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(target.number), 0, 0);
@@ -632,7 +661,7 @@ export class FocusGame {
     });
   }
 
-  drawBoardShapes(left, top, size) {
+  drawBoardShapes(left, top, width, height) {
     const ctx = this.ctx;
     ctx.save();
     ctx.translate(left, top);
@@ -663,10 +692,10 @@ export class FocusGame {
     ctx.strokeStyle = "#d3a00f";
     ctx.lineWidth = 2;
     for (let i = 0; i < Math.min(16 + this.level, 54); i += 1) {
-      const x = (i * 71) % size;
+      const x = (i * 71) % width;
       ctx.beginPath();
       ctx.moveTo(x, 0);
-      ctx.lineTo((x + 140) % size, size);
+      ctx.lineTo((x + 140) % width, height);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
@@ -684,13 +713,14 @@ export class FocusGame {
     ctx.fillStyle = "#746d62";
     ctx.font = "bold 19px serif";
     ctx.textAlign = "left";
-    ctx.fillText(`快速从 1 找到 ${this.maxNumber}`, rect.left + 18, rect.top + 36);
+    const labelY = rect.top + Math.min(34, rect.height * 0.42);
+    ctx.fillText(`快速从 1 找到 ${this.maxNumber}`, rect.left + 18, labelY);
     ctx.textAlign = "right";
-    ctx.fillText(`${this.elapsed.toFixed(1)}s`, rect.left + rect.width - 18, rect.top + 36);
+    ctx.fillText(`${this.elapsed.toFixed(1)}s`, rect.left + rect.width - 18, labelY);
     ctx.textAlign = "left";
 
     const barX = rect.left + 18;
-    const barY = rect.top + 58;
+    const barY = rect.top + rect.height - 28;
     const barW = rect.width - 36;
     const barH = 12;
     ctx.fillStyle = "rgba(25,24,22,.08)";
