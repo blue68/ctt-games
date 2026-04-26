@@ -14,6 +14,7 @@ const MODES = {
   PAUSE: "pause",
   RESULT: "result",
 };
+const PROMO_CODE_PATH = "assets/promo-code.png";
 
 export class FocusGame {
   constructor() {
@@ -43,6 +44,7 @@ export class FocusGame {
     this.pauseStartedAt = 0;
     this.rankList = [];
     this.authButton = null;
+    this.promoCodeImage = null;
     this.best = wx.getStorageSync(STORAGE_KEYS.best) || {};
     this.marathon = wx.getStorageSync(STORAGE_KEYS.marathon) || { level: 1, bestLevel: 1 };
     this.user = wx.getStorageSync(STORAGE_KEYS.user) || null;
@@ -55,6 +57,7 @@ export class FocusGame {
       this.configureCanvas();
       this.relayoutGame();
     });
+    this.loadPromoCode();
     this.bindTouch();
     this.setupShare();
     const options = wx.getLaunchOptionsSync?.();
@@ -66,6 +69,18 @@ export class FocusGame {
       this.mode = MODES.PK;
     }
     this.loop();
+  }
+
+  loadPromoCode() {
+    if (!wx.createImage) return;
+    const image = wx.createImage();
+    image.onload = () => {
+      this.promoCodeImage = image;
+    };
+    image.onerror = () => {
+      this.promoCodeImage = null;
+    };
+    image.src = PROMO_CODE_PATH;
   }
 
   configureCanvas() {
@@ -378,6 +393,7 @@ export class FocusGame {
         elapsed: this.elapsed || 0,
         next: this.next || 1,
         nickname: this.user?.userInfo?.nickName || "眼力挑战者",
+        promoCodeImage: this.promoCodeImage,
       });
     } catch (error) {
       return "";

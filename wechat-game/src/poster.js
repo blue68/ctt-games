@@ -38,17 +38,19 @@ export function createSharePoster(canvas, gameState) {
 
   ctx.fillStyle = "#191816";
   ctx.font = "bold 24px serif";
-  ctx.fillText("在复杂图形中快速找数", 48, 306);
+  ctx.fillText("在复杂图形中快速找数", 48, 298);
   ctx.font = "16px serif";
   ctx.fillStyle = "#746d62";
-  ctx.fillText("49 个关卡，记录观察速度与完成进度。", 48, 334);
+  ctx.fillText("49 个关卡，记录观察速度与完成进度。", 48, 326);
 
-  roundRect(ctx, 48, height - 94, width - 96, 52, 16, "#d3a00f", "#191816", 3);
+  roundRect(ctx, 48, height - 52, 260, 34, 13, "#d3a00f", "#191816", 3);
   ctx.fillStyle = "#191816";
-  ctx.font = "bold 20px serif";
+  ctx.font = "bold 17px serif";
   ctx.textAlign = "center";
-  ctx.fillText("打开小程序查看游戏", width / 2, height - 61);
+  ctx.fillText("打开小程序查看游戏", 178, height - 29);
   ctx.textAlign = "left";
+
+  drawPromoCode(ctx, gameState.promoCodeImage, width - 150, height - 148, 104);
   ctx.restore();
   return canvas.toTempFilePathSync({
     x: 0,
@@ -58,6 +60,26 @@ export function createSharePoster(canvas, gameState) {
     destWidth: 500,
     destHeight: 400,
   });
+}
+
+function drawPromoCode(ctx, image, x, y, size) {
+  roundRect(ctx, x - 8, y - 8, size + 16, size + 26, 16, "#fffdfa", "#191816", 3);
+  if (image) {
+    ctx.drawImage(image, x, y, size, size);
+  } else {
+    ctx.fillStyle = "rgba(25,24,22,.08)";
+    ctx.fillRect(x, y, size, size);
+    ctx.fillStyle = "#746d62";
+    ctx.font = "bold 16px serif";
+    ctx.textAlign = "center";
+    ctx.fillText("小程序码", x + size / 2, y + size / 2 + 5);
+    ctx.textAlign = "left";
+  }
+  ctx.fillStyle = "#746d62";
+  ctx.font = "12px serif";
+  ctx.textAlign = "center";
+  ctx.fillText("小程序码", x + size / 2, y + size + 18);
+  ctx.textAlign = "left";
 }
 
 function drawMetric(ctx, x, y, label, value) {
