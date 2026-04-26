@@ -261,17 +261,29 @@ export class FocusGame {
     if (!this.hit(x, y, board.left - edgePadding, board.top - edgePadding, board.width + edgePadding * 2, board.height + edgePadding * 2)) {
       return null;
     }
+    const expected = this.targets.find((target) => !target.found && target.number === this.next);
+    if (expected && this.hitTarget(x, y, expected, true)) return expected;
+
     let nearest = null;
     let distance = Infinity;
     this.targets.forEach((target) => {
       if (target.found) return;
       const current = Math.hypot(target.x - x, target.y - y);
-      if (current <= target.hitRadius && current < distance) {
+      if (this.hitTarget(x, y, target, false) && current < distance) {
         nearest = target;
         distance = current;
       }
     });
     return nearest;
+  }
+
+  hitTarget(x, y, target, relaxed) {
+    const fontSize = this.getTargetFontSize(this.boardRect);
+    const digits = String(target.number).length;
+    const radius = target.hitRadius + (relaxed ? 14 : 6);
+    const halfWidth = Math.max(radius, fontSize * (digits * 0.42 + 0.34) + (relaxed ? 18 : 10));
+    const halfHeight = Math.max(radius, fontSize * 0.72 + (relaxed ? 18 : 10));
+    return Math.abs(x - target.x) <= halfWidth && Math.abs(y - target.y) <= halfHeight;
   }
 
   openSelect() {
@@ -483,7 +495,7 @@ export class FocusGame {
     const scale = clamp(Math.sqrt((board.width * board.height) / (360 * 360)), 0.95, 1.34);
     const density = clamp(config.maxNumber / 100, 0.12, 1);
     const difficultyCompensation = 10 - density * 4;
-    return clamp(config.hitRadius * scale + difficultyCompensation, 26, 46);
+    return clamp(config.hitRadius * scale + difficultyCompensation, 30, 58);
   }
 
   render() {
